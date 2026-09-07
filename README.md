@@ -1,107 +1,116 @@
-# NN-CA2-Shallow-CNN-and-Classification-of-Chest-x-ray-Images
-### 1.Shallow Convolutional Neural Network for Image Classification [Link](#Part-1-Shallow-Convolutional-Neural-Network-for-Image-Classification)
+# Chest X-ray Classifier
 
-### 2.Chest X-Ray Image Classification for Pneumonia Detection [Link](#Part-2-Chest-X-Ray-Image-Classification-for-Pneumonia-Detection)
+Binary classification of chest radiographs, NORMAL against PNEUMONIA, using
+EfficientNetB2 pretrained on ImageNet with the first 74 layers frozen and a small
+dense head fine-tuned on top.
 
-# Part 1: Shallow Convolutional Neural Network for Image Classification
+![ROC curve, area 0.909](docs/roc_curve.png)
 
-In this section, we will implement a shallow convolutional neural network (SCNNB) for image classification based on the research article titled "Shallow Convolutional Neural Network for Image Classification" available at [Springer](https://link.springer.com/article/10.1007/s42452-019-1903-4).
+## Requirements
 
-## Data Preprocessing
+Python 3.10 or later, and the
+[chest-xray-pneumonia](https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia)
+dataset from Kaggle, downloaded and unzipped locally.
 
-In the article, it is mentioned that images from MNIST, FashionMNIST, and 10CIFAR datasets are used. These images are randomly flipped with a 0.5 probability and used as training and test data. According to the article, the size of the images for MNIST and FashionMNIST datasets is 28x28, and for the 10CIFAR dataset, it's 32x32.
+## Installation
 
-Additionally, these datasets are normalized using max-min normalization with a mean and standard deviation both set to 0.5. This normalization helps bring pixel values into a similar range, making it easier for the model to learn features and preventing issues like gradient vanishing or exploding. To apply this normalization, you can add the following transform to your code: `((0.5,), (0.5,))Normalize.transform`.
+```bash
+pip install -e .
+```
 
-## Model Architecture
+With the test suite:
 
-The SCNNB architecture consists of two convolutional layers, two max-pooling layers with a size of 2x2, one fully connected layer, and one softmax layer. Batch Normalization is added after each convolutional layer to improve network training and generalization.
+```bash
+pip install -e ".[dev]"
+```
 
-To keep the model shallow, 3x3 kernels are used for both convolutional layers. The first layer has 32 filters, and the second layer has 64 filters. After each Batch Normalization layer, ReLU activation is applied to prevent the model from becoming too linear.
+## Usage
 
-Finally, a fully connected layer with 1280 neurons and a dropout probability of 0.5 is used to prevent overfitting. The output layer employs softmax activation for multi-class classification.
+```python
+from chest_xray import build_model, evaluate, load_images, stratified_splits
 
-## Hyperparameters
+images, labels, names = load_images("chest_xray/")
+splits = stratified_splits(images, labels)
 
-The hyperparameters mentioned in the article are as follows:
+model = build_model()
+model.fit(*splits["train"], validation_data=splits["validation"], epochs=20)
 
-- Learning rate: 0.02
-- Optimizer: Stochastic Gradient Descent (SGD) with momentum (0.9) and weight decay (0.000005)
-- Dropout rate: 0.5
-- Number of epochs: 150 for MNIST, 300 for FashionMNIST, and 300 for 10CIFAR
-- Batch size: 128
-- Loss function: Cross-Entropy Loss
+x_test, y_test = splits["test"]
+print(evaluate(y_test, model.predict(x_test), names).report)
+```
 
-## Model Architectures
-
-The article mentions three proposed architectures: SCNNB, a-SCNNB (with Batch Normalization only after the first convolutional layer), and b-SCNNB (with Batch Normalization removed from both convolutional layers).
-
-## Results
-
-Results show that for MNIST, the model achieves an accuracy of approximately 99.1%, for FashionMNIST, approximately 92.3%, and for 10CIFAR, approximately 78%. Overfitting is observed as the training accuracy reaches 100% after some epochs, but the validation accuracy plateaus. More training data may help further improve performance.
-
-## Conclusion
-
-In conclusion, the SCNNB architecture demonstrates strong performance in image classification tasks, with the potential for further optimization and adaptation to different datasets.
-
-# Part 2: Chest X-Ray Image Classification for Pneumonia Detection
-
-This repository contains code for classifying chest X-ray images to detect pneumonia. The code is based on the following research article:
-
-**Title**: [Automated Diagnosis of Pneumonia from Classification of Chest X-Ray Images using EfficientNet](https://www.researchgate.net/profile/Nusrat-Jahan-122/publication/351643298_Automated_Diagnosis_of_Pneumonia_from_Classification_of_Chest_X-Ray_Images_using_EfficientNet/links/60bf9e35a6fdcc512815ddae/Automated-Diagnosis-of-Pneumonia-from-Classification-of-Chest-X-Ray-Images-using-EfficientNet.pdf)
-
-## Preparing and Preprocessing the Data
-
-### Data Preparation
-
-The dataset used in this article consists of 5863 images, comprising 4273 images from individuals with pneumonia and 1583 images from healthy individuals. Given the complexity of the problem and the architecture of the network, the data is split into three parts: training, validation, and testing, ensuring that the class ratio is maintained in all sections to prevent imbalance. The data is divided into three parts with proportions of 60%, 20%, and 20%, respectively. The images are resized to 128x128 pixels.
-
-To augment the dataset and address data scarcity, data augmentation techniques such as zooming, rotation, horizontal or vertical shifting, and more are applied. Additionally, all data is rescaled by a factor of 1/255, which is equivalent to min-max normalization based on the pixel value range.
-
-### Data Retrieval
-
-The "json.Kaggle" file is downloaded from Kaggle to be used with the Kaggle API and uploaded to the Google Colab environment. The dataset is then downloaded in the Google Colab environment.
-
-### Data Loading and Preprocessing
-
-Images are loaded using OpenCV, resized to the specified dimensions (128x128) as mentioned in the article, and stored in an array. Data is divided by 255 according to the rescale parameter. The dataset is then split into three parts using the StratifiedShuffleSplit function from the sklearn library, ensuring that the class ratio is maintained in all sections.
-
-### Data Augmentation
-
-Data augmentation is implemented using the ImageDataGenerator in the Keras library.
-
-## Model Architecture
-
-A convolutional neural network (CNN) architecture called EfficientNet is used in this project. The goal of EfficientNet is to achieve better performance in image classification with fewer parameters compared to previous architectures. The main idea behind EfficientNet is to scale the depth, width, and resolution of the network in a principled way to balance model performance and computational cost. Specifically, it employs the Compound Scaling method to simultaneously scale the depth, width, and resolution based on predefined coefficients.
-
-The overall architecture of the network consists of three main parts:
-
-1. **Stem Layer**: This section includes a convolutional layer followed by a batch normalization layer and a ReLU activation function. The goal of this layer is to extract low-level features from input images.
-
-2. **Repeated Blocks**: These blocks are the main building blocks of the EfficientNet architecture. Each block consists of a series of layers, including convolutional layers, batch normalization, and activation functions. The depth, width, and resolution of each block are scaled according to the predefined coefficients. The number of these blocks is determined by a parameter called the coefficient depth.
-
-3. **Classification Head**: This section is the final layer of the EfficientNet architecture, consisting of a Global Average Pooling layer followed by a fully connected layer with a softmax activation function. The purpose of this layer is to map the extracted feature vectors from the repeated blocks to the class output and determine the corresponding class.
-
-EfficientNet is designed with a principled approach that allows it to achieve better accuracy with fewer computational resources and lower complexity compared to older CNN architectures. It has been widely tested on large image classification benchmarks such as ImageNet and consistently demonstrated good performance. Furthermore, the idea of balancing model capability and computational cost makes it a suitable choice for researchers looking to achieve good accuracy with lower computational expenses.
-
-### Implementation
-
-The code for the EfficientNet model is implemented using the Keras library with the functional API. The EfficientNetB2 model is loaded with its pre-trained weights on the ImageNet dataset, excluding the top classification layer. The input tensor dimensions are set to 128x128, as mentioned in the article. The final layers of the network are then connected to the end of EfficientNetB2.
-
-### Training Details
-
-In the results section of the article, it is mentioned that the Adam optimizer with a learning rate of 0.001 achieved good results. The batch size is set to 128. Class weights are calculated to address the class imbalance issue in the dataset. It is also mentioned in the article that some of the top layers (at the end) of the EfficientNetB2 model were allowed to be fine-tuned, but the lower layers were frozen. The exact number of these layers is not specified. In our implementation, we allowed the training of the last 80 layers, considering that EfficientNetB2 has around 340 layers in total, and allowing at least 25% of the layers to be trainable is a reasonable choice to update higher-level filters. EarlyStopping and ModelCheckpoint were used in the code, but EarlyStopping was disabled due to model instability in the early training steps. ModelCheckpoint was also not used due to frequent interruptions in the training process.
-
-The model is trained with the following hyperparameter changes, which led to an improved model with reasonable accuracy:
-
-1. Increased the number of layers allowed for training, leaving only the first 74 layers frozen, as the stem layers (responsible for extracting low-level features) and the first two blocks of repeated blocks are allowed to be trained.
-
-2. Reduced the learning rate significantly, as increasing the number of trainable layers and parameters can lead to rapid instability or overfitting. A learning rate scheduler was used to further reduce the learning rate in two stages.
-
-3. Reduced the batch size to 32 to achieve faster convergence.
-
-The model is trained for 20 epochs.
+`evaluate` selects the ROC-optimal threshold by default. Pass `threshold=0.5` to
+score at the conventional cut instead.
 
 ## Results
 
-The accuracy of the model on the test data is approximately 82%. While this may not seem high at first glance, it is important to consider the challenges of the task and the limited amount of training data available for fine-tuning a large architecture like EfficientNet. Further improvements could be explored with larger datasets or more extensive fine-tuning.
+1,171 held-out images, 316 normal and 855 pneumonia, at the default 0.5
+threshold.
+
+| | precision | recall | f1 | support |
+| --- | --- | --- | --- | --- |
+| NORMAL | 0.62 | 0.88 | 0.73 | 316 |
+| PNEUMONIA | 0.95 | 0.80 | 0.87 | 855 |
+| accuracy | | | 0.82 | 1,171 |
+
+ROC AUC is 0.909, and the distance between that and the 0.82 accuracy is the
+useful part. An AUC of 0.909 says the model ranks a random pneumonia case above a
+random normal one about nine times in ten, so the representation separates the
+classes well. The accuracy says the threshold is placed badly for this data.
+
+Cutting at 0.5 is correct only when classes are balanced and both error types
+cost the same. Neither holds: pneumonia outnumbers normal 2.7 to 1, and a missed
+pneumonia is not interchangeable with a false alarm. At that threshold the model
+misses 20% of pneumonia cases while raising a false alarm on nearly four in ten
+of the images it calls normal. `best_threshold()` picks the point maximising
+sensitivity plus specificity, and the AUC says there is room to trade precision
+for recall.
+
+The ROC curve and confusion matrix are in `docs/`.
+
+## Approach
+
+**Splitting.** The published validation split is sixteen images, too few to
+select on, so all three directories are pooled and re-split 60/20/20 with
+stratification, preserving the class ratio in each.
+
+**Imbalance.** Balanced class weights during training rather than resampling, so
+no image is duplicated or discarded.
+
+**Augmentation.** Geometric only: horizontal flip, ±30° rotation, 20% shift and
+zoom. No vertical flip, since an upside-down radiograph is not something anyone
+is asked to read, and no brightness jitter, since that alters the tissue contrast
+the model needs.
+
+**Schedule.** Adam with piecewise-constant decay, 1e-5 falling to 1e-6 across 20
+epochs, kept low because most of the backbone is frozen and the head is small.
+
+## Project structure
+
+```
+chest_xray/
+    data.py       loading, class ordering, stratified splits
+    model.py      EfficientNetB2 backbone, classification head, augmentation
+    evaluate.py   metrics and ROC-optimal thresholding
+tests/            splitting, thresholding and model wiring tests
+docs/             figures referenced by this README
+pyproject.toml    dependencies
+```
+
+## Components
+
+| module | responsibility |
+| --- | --- |
+| `data` | Reads the image tree, fixes class ordering, produces the three splits |
+| `model` | Builds and compiles the network, and the augmentation pipeline |
+| `evaluate` | Threshold selection, accuracy, per-class report, confusion matrix |
+
+## Testing
+
+```bash
+python -m pytest tests/
+```
+
+Seven tests covering class ordering, image dtype and range, split disjointness
+and class balance, threshold selection, and model output shape. The model test
+builds the network without pretrained weights, so nothing is downloaded.
